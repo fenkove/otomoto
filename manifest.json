@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "name": "otomooto",
+  "version": "0.3",
+  "permissions": [
+    "activeTab",
+    "<all_urls>"
+],
+  "browser_action": {
+	"default_popup": "popup.html",
+    "default_title": "OTOMOTO Растаможка"
+  },
+  "content_scripts": [{
+    "matches": [
+      "<all_urls>"
+    ],
+    "js": ["content.js"]
+  }]
+}
