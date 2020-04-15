@@ -1,43 +1,48 @@
-console.log("Logging Content.js");
-
-let par = document.getElementsByClassName('offer-price__number');
-for (el of par) {
-	el.style['background-color'] = '#FF00FF';
-}
-console.log(par[0].textContent);
-
-let params = document.getElementsByClassName('offer-params__value');
-params[6].style['background-color'] = '#FF00FF';
-params[8].style['background-color'] = '#FF00FF';
-
-var text1 = par[0].textContent;
-var text2 = params[6].textContent;
-var text3 = params[8].textContent;
-
-var price0 = parseInt(text1.match(/\d+/g).map(Number)[0])
-var price1 = parseInt(text1.match(/\d+/g).map(Number)[1])
-var rik = parseInt(text2.match(/\d+/),10)
-var obem0 = parseInt(text3.match(/\d+/g).map(Number)[0])
-var obem1 = parseInt(text3.match(/\d+/g).map(Number)[1])
-
-console.log()
-console.log(rik)
-
-var obem_final = (obem0*1000)+obem1
-
-var k_rik = 1
-
-if ((2020-rik) > 15) {
-	k_rik = 15;
-} else {
-	k_rik = 2020-rik;
+function getElementByXpath(path) {
+	return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 }
 
-var price_eur = ((price0*1000)+price1)/4.55
+function getIntValue(source, element) {
+	return parseInt(source.split(element)[1].match(/\d+/)[0]);
+}
 
-var aktsyz = 50 * (obem_final/1000) * k_rik
-var final_price = (price_eur + price_eur*0.055 + aktsyz)*1.2
-console.log(final_price)
+//GET VALUE PARSING HTML
+//var price_string_pln = getElementByXpath("//*[@class='offer-price__number']/text()");
+//var price_pln = parseInt(String(price_string_pln.textContent).replace(/ /g, ''), 10);
+//console.log("price_pln: " + price_pln);
+
+var json_str = getElementByXpath("//*[contains(text(),'GPT.targeting')]").textContent;
+
+const price_pln = getIntValue(json_str, "price_raw");
+const year = getIntValue(json_str, "year");
+const capacity = getIntValue(json_str, "capacity");
+
+// FORMULA
+function getYearKoef(year){
+	if ((2020-year) > 15) {
+		return 15;
+	} else {
+		return 2020-year;
+	}
+}
+
+function getCustomValue(price){
+	return price*0.055;
+}
+
+function getExciseValue(capacity, year){
+	return 50 * (capacity/1000) * getYearKoef(year)
+}
+
+function getTaxValue(price){
+	return price*0.2;
+}
+
+const price_eur = price_pln / 4.55;
+
+var total_price_eur_without_tax = price_eur + getCustomValue(price_eur) + getExciseValue(capacity, year);
+var total_price_eur = total_price_eur_without_tax + getTaxValue(total_price_eur_without_tax);
+console.log(total_price_eur)
 
 chrome.runtime.sendMessage({
   from: 'content',
@@ -46,7 +51,13 @@ chrome.runtime.sendMessage({
 
 chrome.runtime.onMessage.addListener((msg, sender, response) => {
   if ((msg.from === 'popup') && (msg.subject === 'DOMInfo')) {
-	var domInfo = Math.round(final_price)
+	var domInfo = {
+      total_price_eur: Math.round(total_price_eur),
+      initial_price_eur: Math.round(price_eur),
+      custom_value: Math.round(getCustomValue(price_eur)),
+	  excise_value: Math.round(getExciseValue(capacity, year)),
+	  tax: Math.round(getTaxValue(total_price_eur_without_tax))
+    };
     response(domInfo);
   }
 });
