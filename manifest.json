@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "otomooto",
-  "version": "0.3",
+  "version": "1.0",
   "permissions": [
     "activeTab",
     "<all_urls>"
@@ -11,7 +11,7 @@
           "128": "img/icon128.png" },
   "browser_action": {
 	"default_popup": "popup.html",
-    "default_title": "OTOMOTO Растаможка"
+    "default_title": "OTOMOTO Калькулятор Розмитнення"
   },
   "content_scripts": [{
     "matches": [
