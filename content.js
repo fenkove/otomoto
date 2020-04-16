@@ -29,9 +29,18 @@ const fuel_type = getStringValue(json_str, "fuel_type");
 // Tax calculation
 const customPercent = 0.055;
 const currentYear = new Date().getFullYear();
-const exciseFuelKoef = (fuel_type == 'diesel') ? 75 : 50;
 const maxYearKoef = 15;
 const taxPercent = 0.2;
+
+function getExciseBaseRate(type, capacity){
+	if (type == "petrol"){
+		return (capacity < 3000) ? 50 : 100;
+	}
+	else {
+		return (capacity < 3500) ? 75 : 150;
+	}
+}
+
 
 function getYearKoef(year){
 	if ((currentYear-year) > maxYearKoef) {
@@ -46,7 +55,7 @@ function getCustomValue(price){
 }
 
 function getExciseValue(capacity, year){
-	return exciseFuelKoef * (capacity/1000) * getYearKoef(year);
+	return getExciseBaseRate(fuel_type,capacity) * (capacity/1000) * getYearKoef(year);
 }
 
 function getTaxValue(price){
