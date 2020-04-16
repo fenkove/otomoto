@@ -1,3 +1,4 @@
+// Helpers
 function getElementByXpath(path) {
 	return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 }
@@ -11,17 +12,13 @@ function getStringValue(source, element) {
 }
 
 function getCurrencyRate(currency1, currency2) {
-	var http = new XMLHttpRequest()
-	http.open("GET", "https://api.exchangeratesapi.io/latest?base="+currency1+"&symbols="+currency2, false)
-	http.send()
-	return JSON.parse(http.responseText).rates[currency2]
+	var http = new XMLHttpRequest();
+	http.open("GET", "https://api.exchangeratesapi.io/latest?base="+currency1+"&symbols="+currency2, false);
+	http.send();
+	return JSON.parse(http.responseText).rates[currency2];
 }
 
-//GET VALUE PARSING HTML
-//var price_string_pln = getElementByXpath("//*[@class='offer-price__number']/text()");
-//var price_pln = parseInt(String(price_string_pln.textContent).replace(/ /g, ''), 10);
-//console.log("price_pln: " + price_pln);
-
+// Getting vehicle data
 var json_str = getElementByXpath("//*[contains(text(),'GPT.targeting')]").textContent;
 
 const price_pln = getIntValue(json_str, "price_raw");
@@ -29,12 +26,12 @@ const year = getIntValue(json_str, "year");
 const capacity = getIntValue(json_str, "capacity");
 const fuel_type = getStringValue(json_str, "fuel_type");
 
-// FORMULA
-const customPercent = 0.055
-const currentYear = new Date().getFullYear()
-const exciseFuelKoef = (fuel_type == 'diesel') ? 75 : 50
-const maxYearKoef = 15
-const taxPercent = 0.2
+// Tax calculation
+const customPercent = 0.055;
+const currentYear = new Date().getFullYear();
+const exciseFuelKoef = (fuel_type == 'diesel') ? 75 : 50;
+const maxYearKoef = 15;
+const taxPercent = 0.2;
 
 function getYearKoef(year){
 	if ((currentYear-year) > maxYearKoef) {
@@ -49,7 +46,7 @@ function getCustomValue(price){
 }
 
 function getExciseValue(capacity, year){
-	return exciseFuelKoef * (capacity/1000) * getYearKoef(year)
+	return exciseFuelKoef * (capacity/1000) * getYearKoef(year);
 }
 
 function getTaxValue(price){
@@ -58,16 +55,12 @@ function getTaxValue(price){
 
 var price_eur = price_pln * getCurrencyRate("PLN","EUR");
 
-var total_price_eur_without_tax = price_eur 
-								+ getCustomValue(price_eur) 
-								+ getExciseValue(capacity, year);
-var total_price_eur = total_price_eur_without_tax 
-					+ getTaxValue(total_price_eur_without_tax);
-console.log(total_price_eur)
+var total_price_eur_without_tax = price_eur + getCustomValue(price_eur) + getExciseValue(capacity, year);
+var total_price_eur = total_price_eur_without_tax + getTaxValue(total_price_eur_without_tax);
 
 var total_price_usd = total_price_eur * getCurrencyRate("EUR","USD");
-console.log(total_price_usd)
 
+//Sending data to popup.js
 chrome.runtime.sendMessage({
   from: 'content',
   subject: 'showPageAction',
