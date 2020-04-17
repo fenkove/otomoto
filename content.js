@@ -18,22 +18,6 @@ function getCurrencyRate(currency1, currency2) {
 	return JSON.parse(http.responseText).rates[currency2];
 }
 
-// Getting vehicle data
-var json_str = getElementByXpath("//*[contains(text(),'GPT.targeting')]").textContent;
-
-const price_pln = getIntValue(json_str, "price_raw");
-const year = getIntValue(json_str, "year");
-const capacity = getIntValue(json_str, "capacity");
-const fuel_type = getStringValue(json_str, "fuel_type");
-console.log(fuel_type);
-
-// Tax calculation
-const customPercent = (fuel_type == "hybrid") ? 0.1 : 0.055;
-const currentYear = new Date().getFullYear();
-const maxYearKoef = 15;
-const taxPercent = 0.2;
-const hybrid_excise = 100;
-
 function getExciseBaseRate(type, capacity){
 	if (type == "petrol"){
 		return (capacity < 3000) ? 50 : 100;
@@ -52,25 +36,41 @@ function getYearKoef(year){
 	}
 }
 
-function getCustomValue(price){
-	return price*customPercent;
+function getCustomValue(price, fuel_type){
+	return (fuel_type != 'electric') ? price*customPercent : 0;
 }
 
 function getExciseValue(capacity, year, fuel_type){
-	return (fuel_type == 'hybrid') ? hybrid_excise : (getExciseBaseRate(fuel_type,capacity) * (capacity/1000) * getYearKoef(year));
+	return (fuel_type == 'hybrid' || fuel_type == 'electric') ? hybrid_electro_excise : (getExciseBaseRate(fuel_type,capacity) * (capacity/1000) * getYearKoef(year));
 }
 
-function getTaxValue(price){
-	return price*taxPercent;
+function getTaxValue(price, fuel_type){
+	return (fuel_type != 'electric') ? price*taxPercent : 0;
 }
+
+// Getting vehicle data
+var json_str = getElementByXpath("//*[contains(text(),'GPT.targeting')]").textContent;
+
+const price_pln = getIntValue(json_str, "price_raw");
+const year = getIntValue(json_str, "year");
+const fuel_type = getStringValue(json_str, "fuel_type");
+const capacity = (fuel_type == 'electric') ? 0 : getIntValue(json_str, "capacity");
+
+// Tax calculation
+const customPercent = (fuel_type == "hybrid") ? 0.1 : 0.055;
+const currentYear = new Date().getFullYear();
+const maxYearKoef = 15;
+const taxPercent = 0.2;
+const hybrid_electro_excise = 100;
 
 var price_eur = price_pln * getCurrencyRate("PLN","EUR");
-var custom_value = getCustomValue(price_eur);
-var excise_value = getExciseValue(capacity, year, fuel_type);
+var custom_value = getCustomValue(price_eur, fuel_type);
+var excise_value = getExciseValue(capacity, year, fuel_type); 
 var total_price_eur_without_tax = price_eur + custom_value + excise_value;
-var tax_value = getTaxValue(total_price_eur_without_tax);
+var tax_value = getTaxValue(total_price_eur_without_tax, fuel_type);
 var total_price_eur = total_price_eur_without_tax + tax_value;
 var total_price_usd = total_price_eur * getCurrencyRate("EUR","USD");
+var isElectric = (fuel_type == 'electric');
 
 //Sending data to popup.js
 chrome.runtime.sendMessage({
@@ -81,11 +81,11 @@ chrome.runtime.sendMessage({
 chrome.runtime.onMessage.addListener((msg, sender, response) => {
   if ((msg.from === 'popup') && (msg.subject === 'DOMInfo')) {
 	var domInfo = {
-      total_price_eur: Math.round(total_price_eur),
-	  total_price_usd: Math.round(total_price_usd),
+      total_price_eur: (isElectric) ? "~"+Math.round(total_price_eur) : Math.round(total_price_eur),
+	  total_price_usd: (isElectric) ? "~"+Math.round(total_price_usd) : Math.round(total_price_usd),
       initial_price_eur: Math.round(price_eur),
       custom_value: Math.round(custom_value),
-	  excise_value: Math.round(excise_value),
+	  excise_value: (isElectric) ? "до "+excise_value : Math.round(excise_value),
 	  tax: Math.round(tax_value)
     };
     response(domInfo);
